@@ -9,6 +9,7 @@ export interface Task {
   status: TaskStatus;
   progress: number;
   createdAt: string;
+  projectId: string;
 }
 
 export interface CreateTaskPayload {
@@ -18,6 +19,7 @@ export interface CreateTaskPayload {
   budget: number;
   status: TaskStatus;
   progress: number;
+  projectId: string;
 }
 
 export interface UpdateTaskPayload {
@@ -28,3 +30,24 @@ export interface UpdateTaskPayload {
   status?: TaskStatus;
   progress?: number;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface CreateProjectPayload {
+  name: string;
+  description?: string;
+}
+
+export interface ProjectProgress {
+  totalTasks: number;
+  completedTasks: number;
+  avgProgress: number;
+  budgetTotal: number;
+  budgetDone: number;
+}
+

@@ -10,6 +10,7 @@ export interface CreateTaskInput {
   budget: number;
   status: TaskStatus;
   progress: number;
+  projectId: string;
 }
 
 export interface UpdateTaskInput {
@@ -21,8 +22,11 @@ export interface UpdateTaskInput {
   progress?: number;
 }
 
-export async function getAllTasks() {
-  return prisma.task.findMany({ orderBy: { createdAt: 'asc' } });
+export async function getAllTasks(projectId?: string) {
+  return prisma.task.findMany({
+    where: projectId ? { projectId } : undefined,
+    orderBy: { createdAt: 'asc' },
+  });
 }
 
 export async function createTask(input: CreateTaskInput) {
@@ -35,6 +39,7 @@ export async function createTask(input: CreateTaskInput) {
       budget: input.budget,
       status: input.status,
       progress: input.progress ?? 0,
+      projectId: input.projectId,
     },
   });
 }

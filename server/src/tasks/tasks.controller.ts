@@ -13,7 +13,8 @@ function isValidDate(s: unknown): boolean {
 
 export async function getTasks(req: Request, res: Response): Promise<void> {
   try {
-    const tasks = await tasksService.getAllTasks();
+    const projectId = typeof req.query['projectId'] === 'string' ? req.query['projectId'] : undefined;
+    const tasks = await tasksService.getAllTasks(projectId);
     res.json(tasks);
   } catch (err) {
     console.error('[getTasks]', err);
@@ -22,7 +23,7 @@ export async function getTasks(req: Request, res: Response): Promise<void> {
 }
 
 export async function createTask(req: Request, res: Response): Promise<void> {
-  const { name, startDate, endDate, budget, status, progress } = req.body;
+  const { name, startDate, endDate, budget, status, progress, projectId } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim() === '') {
     res.status(400).json({ error: 'name is required' });
@@ -44,6 +45,10 @@ export async function createTask(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     return;
   }
+  if (!projectId || typeof projectId !== 'string' || projectId.trim() === '') {
+    res.status(400).json({ error: 'projectId is required' });
+    return;
+  }
 
   try {
     const task = await tasksService.createTask({
@@ -53,6 +58,7 @@ export async function createTask(req: Request, res: Response): Promise<void> {
       budget,
       status,
       progress: typeof progress === 'number' ? Math.min(100, Math.max(0, progress)) : 0,
+      projectId: projectId.trim(),
     });
     res.status(201).json(task);
   } catch (err) {

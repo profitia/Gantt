@@ -3,6 +3,8 @@ import type { TaskStatus, CreateTaskPayload } from '../types/task';
 
 interface Props {
   onSubmit: (payload: CreateTaskPayload) => Promise<void>;
+  projectId: string;
+  disabled?: boolean;
 }
 
 const STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'blocked'];
@@ -13,7 +15,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   blocked: 'Blocked',
 };
 
-export default function TaskForm({ onSubmit }: Props) {
+export default function TaskForm({ onSubmit, projectId, disabled }: Props) {
   const today = new Date().toISOString().split('T')[0];
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState(today);
@@ -25,7 +27,7 @@ export default function TaskForm({ onSubmit }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || disabled) return;
     setLoading(true);
     try {
       await onSubmit({
@@ -35,6 +37,7 @@ export default function TaskForm({ onSubmit }: Props) {
         budget: parseFloat(budget) || 0,
         status,
         progress: parseInt(progress, 10) || 0,
+        projectId,
       });
       setName('');
       setBudget('');

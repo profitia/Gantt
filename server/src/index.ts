@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import tasksRouter from './tasks/tasks.router.js';
+import projectsRouter from './projects/projects.router.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use('/tasks', tasksRouter);
+app.use('/projects', projectsRouter);
 
 // Start
 app.listen(PORT, () => {
