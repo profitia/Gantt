@@ -6,21 +6,10 @@ import tasksRouter from './tasks/tasks.router.ts';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — allow frontend from Render and localhost
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:4173',
-  process.env.FRONTEND_URL,
-].filter(Boolean) as string[];
-
+// ✅ PROSTA wersja CORS (działa zawsze na MVP)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
@@ -28,16 +17,24 @@ app.use(
 
 app.use(express.json());
 
+// Root
 app.get('/', (_req, res) => {
-  res.json({ name: 'Gantt Dashboard API', version: '1.0.0', endpoints: ['/health', '/tasks'] });
+  res.json({
+    name: 'Gantt Dashboard API',
+    version: '1.0.0',
+    endpoints: ['/health', '/tasks'],
+  });
 });
 
+// Health
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Routes
 app.use('/tasks', tasksRouter);
 
+// Start
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
