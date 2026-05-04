@@ -1,4 +1,4 @@
-import prisma from '../prisma.ts';
+import prisma from '../prisma.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked';

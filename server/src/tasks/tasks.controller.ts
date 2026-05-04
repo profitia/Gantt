@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import * as tasksService from './tasks.service.ts';
+import * as tasksService from './tasks.service.js';
 
 const VALID_STATUSES = ['todo', 'in_progress', 'done', 'blocked'];
 
@@ -16,6 +16,7 @@ export async function getTasks(req: Request, res: Response): Promise<void> {
     const tasks = await tasksService.getAllTasks();
     res.json(tasks);
   } catch (err) {
+    console.error('[getTasks]', err);
     res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 }
@@ -55,6 +56,7 @@ export async function createTask(req: Request, res: Response): Promise<void> {
     });
     res.status(201).json(task);
   } catch (err) {
+    console.error('[createTask]', err);
     res.status(500).json({ error: 'Failed to create task' });
   }
 }
@@ -95,6 +97,7 @@ export async function updateTask(req: Request, res: Response): Promise<void> {
     });
     res.json(task);
   } catch (err: unknown) {
+    console.error('[updateTask]', err);
     if ((err as { code?: string }).code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
     } else {
@@ -109,6 +112,7 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
     await tasksService.deleteTask(id);
     res.status(204).send();
   } catch (err: unknown) {
+    console.error('[deleteTask]', err);
     if ((err as { code?: string }).code === 'P2025') {
       res.status(404).json({ error: 'Task not found' });
     } else {

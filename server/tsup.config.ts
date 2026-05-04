@@ -10,7 +10,6 @@ export default defineConfig({
   minify: false,
   bundle: true,
   splitting: false,
-  external: ['@prisma/client'],
   noExternal: [],
   esbuildOptions(options) {
     options.banner = {
