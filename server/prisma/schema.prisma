@@ -13,6 +13,7 @@ model Project {
   id          String   @id @default(uuid())
   name        String
   description String   @default("")
+  archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   tasks       Task[]
 }

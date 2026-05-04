@@ -7,7 +7,18 @@ export interface CreateProjectInput {
 }
 
 export async function getAllProjects() {
-  return prisma.project.findMany({ orderBy: { createdAt: 'asc' } });
+  return prisma.project.findMany({
+    where: { archived: false },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function deleteProject(id: string) {
+  return prisma.project.delete({ where: { id } });
+}
+
+export async function archiveProject(id: string) {
+  return prisma.project.update({ where: { id }, data: { archived: true } });
 }
 
 export async function getProjectById(id: string) {

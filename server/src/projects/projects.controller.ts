@@ -1,6 +1,28 @@
 import { Request, Response } from 'express';
 import * as projectsService from './projects.service.js';
 
+export async function deleteProject(req: Request, res: Response): Promise<void> {
+  const id = String(req.params['id']);
+  try {
+    await projectsService.deleteProject(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[deleteProject]', err);
+    res.status(500).json({ error: 'Failed to delete project' });
+  }
+}
+
+export async function archiveProject(req: Request, res: Response): Promise<void> {
+  const id = String(req.params['id']);
+  try {
+    const project = await projectsService.archiveProject(id);
+    res.json(project);
+  } catch (err) {
+    console.error('[archiveProject]', err);
+    res.status(500).json({ error: 'Failed to archive project' });
+  }
+}
+
 export async function getProjects(_req: Request, res: Response): Promise<void> {
   try {
     const projects = await projectsService.getAllProjects();

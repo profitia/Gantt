@@ -35,6 +35,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  archived: boolean;
   createdAt: string;
 }
 

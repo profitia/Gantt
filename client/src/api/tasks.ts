@@ -34,3 +34,9 @@ export const createProject = (payload: CreateProjectPayload): Promise<Project> =
 
 export const fetchProjectProgress = (id: string): Promise<ProjectProgress> =>
   api.get<ProjectProgress>(`/projects/${id}/progress`).then((r) => r.data);
+
+export const deleteProject = (id: string): Promise<void> =>
+  api.delete(`/projects/${id}`).then(() => undefined);
+
+export const archiveProject = (id: string): Promise<Project> =>
+  api.patch<Project>(`/projects/${id}/archive`).then((r) => r.data);

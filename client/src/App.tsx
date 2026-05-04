@@ -13,6 +13,8 @@ import {
   deleteTask,
   fetchProjects,
   createProject,
+  deleteProject,
+  archiveProject,
 } from './api/tasks';
 import type { Task, Project, CreateTaskPayload, UpdateTaskPayload, CreateProjectPayload } from './types/task';
 
@@ -129,6 +131,37 @@ export default function App() {
     }
   };
 
+  const handleDeleteProject = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.')) return;
+    try {
+      await deleteProject(id);
+      const remaining = projects.filter((p) => p.id !== id);
+      setProjects(remaining);
+      setTasks([]);
+      setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
+      setSelectedProjectId(remaining.length > 0 ? remaining[0].id : null);
+      setProgressToken((n) => n + 1);
+      toast.success('Project deleted');
+    } catch {
+      toast.error('Failed to delete project');
+    }
+  };
+
+  const handleArchiveProject = async (id: string) => {
+    try {
+      await archiveProject(id);
+      const remaining = projects.filter((p) => p.id !== id);
+      setProjects(remaining);
+      setTasks([]);
+      setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
+      setSelectedProjectId(remaining.length > 0 ? remaining[0].id : null);
+      setProgressToken((n) => n + 1);
+      toast.success('Project archived');
+    } catch {
+      toast.error('Failed to archive project');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
@@ -216,6 +249,22 @@ export default function App() {
                     ) : (
                       <GanttChart tasks={tasks} />
                     )}
+
+                    {/* Project actions */}
+                    <div className="flex gap-3 pt-2 border-t border-gray-200">
+                      <button
+                        onClick={() => handleArchiveProject(selectedProjectId)}
+                        className="px-4 py-2 rounded-lg text-sm font-medium border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+                      >
+                        Archive project
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProject(selectedProjectId)}
+                        className="px-4 py-2 rounded-lg text-sm font-medium border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                      >
+                        Delete project
+                      </button>
+                    </div>
                   </>
                 )}
               </>
