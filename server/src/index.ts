@@ -28,6 +28,10 @@ app.use(
 
 app.use(express.json());
 
+app.get('/', (_req, res) => {
+  res.json({ name: 'Gantt Dashboard API', version: '1.0.0', endpoints: ['/health', '/tasks'] });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
