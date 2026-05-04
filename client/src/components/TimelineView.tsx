@@ -40,7 +40,8 @@ function formatDayLabel(date: Date): string {
   return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
 }
 
-const DAY_WIDTH = 44; // px per day column
+// Minimum px per day before horizontal scroll kicks in
+const MIN_DAY_WIDTH = 36;
 
 export default function TimelineView({ tasks, projects }: Props) {
   const [filterProject, setFilterProject] = useState<string>('all');
@@ -70,10 +71,10 @@ export default function TimelineView({ tasks, projects }: Props) {
       });
   }, [tasks, filterProject, filterStatus]);
 
-  const { minDate, maxDate } = useMemo(() => {
+  const allTasksMinMax = useMemo(() => {
     if (filteredTasks.length === 0) {
-      const today = startOfDay(new Date());
-      return { minDate: today, maxDate: addDays(today, 30) };
+      const t = startOfDay(new Date());
+      return { minDate: t, maxDate: addDays(t, 30) };
     }
     const starts = filteredTasks.map((t) => startOfDay(new Date(t.startDate)));
     const ends = filteredTasks.map((t) => startOfDay(new Date(t.endDate)));
@@ -83,24 +84,28 @@ export default function TimelineView({ tasks, projects }: Props) {
     };
   }, [filteredTasks]);
 
-  const displayEnd = useMemo(() => {
-    if (horizon === 'max') return maxDate;
-    return addDays(minDate, (horizon as number) - 1);
-  }, [horizon, minDate, maxDate]);
-
-  const totalDays = useMemo(() => {
-    const d = daysBetween(minDate, displayEnd);
-    return Math.max(d + 1, 1);
-  }, [minDate, displayEnd]);
+  // visibleStart = earliest task start; visibleEnd = start + horizonDays
+  const { visibleStart, visibleEnd, totalDays } = useMemo(() => {
+    const start = allTasksMinMax.minDate;
+    if (horizon === 'max') {
+      const end = allTasksMinMax.maxDate;
+      const days = Math.max(daysBetween(start, end) + 1, 1);
+      return { visibleStart: start, visibleEnd: end, totalDays: days };
+    }
+    const horizonDays = horizon as number;
+    const end = addDays(start, horizonDays - 1);
+    return { visibleStart: start, visibleEnd: end, totalDays: horizonDays };
+  }, [allTasksMinMax, horizon]);
 
   const days = useMemo(
-    () => Array.from({ length: totalDays }, (_, i) => addDays(minDate, i)),
-    [minDate, totalDays]
+    () => Array.from({ length: totalDays }, (_, i) => addDays(visibleStart, i)),
+    [visibleStart, totalDays]
   );
 
   const today = startOfDay(new Date());
-  const todayOffset = daysBetween(minDate, today);
-  const showTodayLine = todayOffset >= 0 && todayOffset < totalDays;
+  const todayOffsetDays = daysBetween(visibleStart, today);
+  const showTodayLine = todayOffsetDays >= 0 && todayOffsetDays < totalDays;
+  const todayLeftPct = ((todayOffsetDays + 0.5) / totalDays) * 100;
 
   return (
     <div className="space-y-4">
@@ -184,10 +189,11 @@ export default function TimelineView({ tasks, projects }: Props) {
 
             {/* Scrollable chart */}
             <div className="overflow-x-auto flex-1">
-              <div style={{ width: `${totalDays * DAY_WIDTH}px`, minWidth: '100%', position: 'relative' }}>
+              {/* Inner div: min-width forces scroll when days are too narrow */}
+              <div style={{ minWidth: `${totalDays * MIN_DAY_WIDTH}px`, width: '100%', position: 'relative' }}>
 
                 {/* Day header */}
-                <div className="flex h-10 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                <div className="flex h-10 border-b border-gray-200 bg-gray-50">
                   {days.map((day, i) => {
                     const isToday =
                       day.getFullYear() === today.getFullYear() &&
@@ -196,10 +202,10 @@ export default function TimelineView({ tasks, projects }: Props) {
                     return (
                       <div
                         key={i}
-                        className={`shrink-0 h-full flex items-center justify-center border-r border-gray-200 text-xs font-medium ${
+                        className={`h-full flex items-center justify-center border-r border-gray-200 text-xs font-medium ${
                           isToday ? 'text-blue-600 bg-blue-50' : 'text-gray-500'
                         }`}
-                        style={{ width: `${DAY_WIDTH}px` }}
+                        style={{ width: `${100 / totalDays}%` }}
                       >
                         {formatDayLabel(day)}
                       </div>
@@ -211,15 +217,19 @@ export default function TimelineView({ tasks, projects }: Props) {
                 {filteredTasks.map((t) => {
                   const taskStart = startOfDay(new Date(t.startDate));
                   const taskEnd = startOfDay(new Date(t.endDate));
-                  const offset = daysBetween(minDate, taskStart);
-                  const duration = daysBetween(taskStart, taskEnd) + 1;
 
-                  const clampedOffset = Math.max(0, offset);
-                  const clampedEnd = Math.min(offset + duration, totalDays);
-                  const clampedDuration = clampedEnd - clampedOffset;
+                  // Clamp to visible range
+                  const clampedStart = taskStart < visibleStart ? visibleStart : taskStart;
+                  const clampedEnd = taskEnd > visibleEnd ? visibleEnd : taskEnd;
 
-                  const leftPx = clampedOffset * DAY_WIDTH;
-                  const widthPx = Math.max(clampedDuration, 1) * DAY_WIDTH;
+                  // Skip if entirely outside visible range
+                  if (clampedEnd < visibleStart || clampedStart > visibleEnd) return null;
+
+                  const offsetDays = daysBetween(visibleStart, clampedStart);
+                  const durationDays = Math.max(daysBetween(clampedStart, clampedEnd) + 1, 1);
+
+                  const leftPct = (offsetDays / totalDays) * 100;
+                  const widthPct = (durationDays / totalDays) * 100;
 
                   const color = STATUS_COLORS[t.status as TaskStatus];
 
@@ -233,7 +243,7 @@ export default function TimelineView({ tasks, projects }: Props) {
                         <div
                           key={i}
                           className="absolute top-0 bottom-0 border-r border-gray-100"
-                          style={{ left: `${(i + 1) * DAY_WIDTH}px` }}
+                          style={{ left: `${((i + 1) / totalDays) * 100}%` }}
                         />
                       ))}
 
@@ -241,32 +251,30 @@ export default function TimelineView({ tasks, projects }: Props) {
                       {showTodayLine && (
                         <div
                           className="absolute top-0 bottom-0 w-px bg-blue-400 opacity-60 z-10"
-                          style={{ left: `${todayOffset * DAY_WIDTH + DAY_WIDTH / 2}px` }}
+                          style={{ left: `${todayLeftPct}%` }}
                         />
                       )}
 
                       {/* Task bar */}
-                      {clampedDuration > 0 && (
-                        <div
-                          title={`${t.name} | ${color.label} | ${t.progress}%`}
-                          className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity cursor-default overflow-hidden`}
-                          style={{ left: `${leftPx + 2}px`, width: `${widthPx - 4}px` }}
-                        >
-                          {/* Progress fill (darker overlay) */}
-                          {t.progress > 0 && (
-                            <div
-                              className="absolute inset-0 bg-black rounded-md"
-                              style={{ width: `${t.progress}%`, opacity: 0.15 }}
-                            />
-                          )}
-                          <div className="relative h-full flex items-center px-2">
-                            <span className="text-xs text-white font-semibold truncate select-none drop-shadow-sm">
-                              {t.name}
-                              {t.progress > 0 && ` · ${t.progress}%`}
-                            </span>
-                          </div>
+                      <div
+                        title={`${t.name} | ${color.label} | ${t.progress}%`}
+                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity cursor-default overflow-hidden`}
+                        style={{ left: `calc(${leftPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
+                      >
+                        {/* Progress fill overlay */}
+                        {t.progress > 0 && (
+                          <div
+                            className="absolute inset-0 bg-black rounded-md"
+                            style={{ width: `${t.progress}%`, opacity: 0.15 }}
+                          />
+                        )}
+                        <div className="relative h-full flex items-center px-2">
+                          <span className="text-xs text-white font-semibold truncate select-none drop-shadow-sm">
+                            {t.name}
+                            {t.progress > 0 && ` · ${t.progress}%`}
+                          </span>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
