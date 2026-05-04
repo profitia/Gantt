@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import TaskForm from './components/TaskForm';
 import TaskList from './components/TaskList';
@@ -26,21 +26,24 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState<MainTab>('projects');
   const [projectTab, setProjectTab] = useState<ProjectTab>('list');
-
-  // All tasks (for progress tab)
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  // token that bumps to force ProgressTab to refetch progress data
+  const [progressToken, setProgressToken] = useState(0);
+
+  const autoSelectedRef = useRef(false);
 
   const loadProjects = useCallback(async () => {
     try {
       const data = await fetchProjects();
       setProjects(data);
-      if (data.length > 0 && !selectedProjectId) {
+      if (data.length > 0 && !autoSelectedRef.current) {
+        autoSelectedRef.current = true;
         setSelectedProjectId(data[0].id);
       }
     } catch {
       toast.error('Failed to load projects');
     }
-  }, [selectedProjectId]);
+  }, []);
 
   const loadTasks = useCallback(async (projectId: string) => {
     try {
@@ -71,7 +74,6 @@ export default function App() {
     }
   }, [selectedProjectId, loadTasks]);
 
-  // Reload all tasks when switching to progress tab
   useEffect(() => {
     if (mainTab === 'progress') {
       loadAllTasks();
@@ -88,8 +90,15 @@ export default function App() {
   const handleCreate = async (payload: CreateTaskPayload) => {
     try {
       const task = await createTask(payload);
+      // optimistic update
       setTasks((prev) => [...prev, task]);
       setAllTasks((prev) => [...prev, task]);
+      // also re-fetch to ensure consistency and bump progress
+      if (payload.projectId) {
+        await loadTasks(payload.projectId);
+        await loadAllTasks();
+        setProgressToken((n) => n + 1);
+      }
       toast.success('Task added');
     } catch {
       toast.error('Failed to add task');
@@ -101,6 +110,7 @@ export default function App() {
       const updated = await updateTask(id, payload);
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
       setAllTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      setProgressToken((n) => n + 1);
       toast.success('Task updated');
     } catch {
       toast.error('Failed to update task');
@@ -112,6 +122,7 @@ export default function App() {
       await deleteTask(id);
       setTasks((prev) => prev.filter((t) => t.id !== id));
       setAllTasks((prev) => prev.filter((t) => t.id !== id));
+      setProgressToken((n) => n + 1);
       toast.success('Task deleted');
     } catch {
       toast.error('Failed to delete task');
@@ -136,7 +147,7 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Main tabs: Projects / Progress */}
+        {/* Main tabs */}
         <div className="flex gap-1 bg-gray-200 rounded-lg p-1 w-fit">
           {(['projects', 'progress'] as const).map((tab) => (
             <button
@@ -155,60 +166,65 @@ export default function App() {
 
         {mainTab === 'projects' && (
           <>
-            {/* Project selector */}
-            <ProjectSelector
-              projects={projects}
-              selectedId={selectedProjectId}
-              onSelect={(id) => setSelectedProjectId(id)}
-              onCreate={handleCreateProject}
-            />
-
-            {selectedProjectId ? (
+            {projects.length === 0 && !loading ? (
+              <div className="text-center py-20 space-y-3">
+                <p className="text-gray-500 font-medium">No projects yet</p>
+                <p className="text-sm text-gray-400">Create your first project to get started</p>
+                <ProjectSelector
+                  projects={[]}
+                  selectedId={null}
+                  onSelect={() => {}}
+                  onCreate={handleCreateProject}
+                />
+              </div>
+            ) : (
               <>
-                {/* Budget summary for current project */}
-                <BudgetSummary tasks={tasks} />
-
-                {/* Add task form */}
-                <TaskForm
-                  onSubmit={handleCreate}
-                  projectId={selectedProjectId}
+                <ProjectSelector
+                  projects={projects}
+                  selectedId={selectedProjectId}
+                  onSelect={(id) => setSelectedProjectId(id)}
+                  onCreate={handleCreateProject}
                 />
 
-                {/* Project sub-tabs: List / Gantt */}
-                <div className="flex gap-1 bg-gray-200 rounded-lg p-1 w-fit">
-                  {(['list', 'gantt'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setProjectTab(tab)}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        projectTab === tab
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      {tab === 'list' ? 'Task List' : 'Gantt Chart'}
-                    </button>
-                  ))}
-                </div>
+                {selectedProjectId && (
+                  <>
+                    <BudgetSummary tasks={tasks} />
 
-                {projectTab === 'list' ? (
-                  <TaskList tasks={tasks} onUpdate={handleUpdate} onDelete={handleDelete} />
-                ) : (
-                  <GanttChart tasks={tasks} />
+                    <TaskForm
+                      onSubmit={handleCreate}
+                      projectId={selectedProjectId}
+                    />
+
+                    <div className="flex gap-1 bg-gray-200 rounded-lg p-1 w-fit">
+                      {(['list', 'gantt'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setProjectTab(tab)}
+                          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                            projectTab === tab
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          {tab === 'list' ? 'Task List' : 'Gantt Chart'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {projectTab === 'list' ? (
+                      <TaskList tasks={tasks} onUpdate={handleUpdate} onDelete={handleDelete} />
+                    ) : (
+                      <GanttChart tasks={tasks} />
+                    )}
+                  </>
                 )}
               </>
-            ) : (
-              !loading && (
-                <div className="text-center py-16 text-gray-400 text-sm">
-                  Create a project to get started
-                </div>
-              )
             )}
           </>
         )}
 
         {mainTab === 'progress' && (
-          <ProgressTab projects={projects} tasks={allTasks} />
+          <ProgressTab projects={projects} tasks={allTasks} refreshToken={progressToken} />
         )}
       </main>
     </div>

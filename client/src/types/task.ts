@@ -44,10 +44,13 @@ export interface CreateProjectPayload {
 }
 
 export interface ProjectProgress {
+  projectId: string;
   totalTasks: number;
   completedTasks: number;
   avgProgress: number;
   budgetTotal: number;
   budgetDone: number;
+  lateTasks: number;
+  overBudget: boolean;
 }
 

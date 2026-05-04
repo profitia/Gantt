@@ -26,6 +26,9 @@ export async function createProject(input: CreateProjectInput) {
 
 export async function getProjectProgress(id: string) {
   const tasks = await prisma.task.findMany({ where: { projectId: id } });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === 'done').length;
   const avgProgress =
@@ -36,6 +39,10 @@ export async function getProjectProgress(id: string) {
   const budgetDone = tasks
     .filter((t) => t.status === 'done')
     .reduce((sum, t) => sum + t.budget, 0);
+  const lateTasks = tasks.filter(
+    (t) => t.status !== 'done' && new Date(t.endDate) < today
+  ).length;
+  const overBudget = budgetDone > budgetTotal;
 
-  return { totalTasks, completedTasks, avgProgress, budgetTotal, budgetDone };
+  return { projectId: id, totalTasks, completedTasks, avgProgress, budgetTotal, budgetDone, lateTasks, overBudget };
 }

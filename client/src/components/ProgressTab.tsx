@@ -6,6 +6,7 @@ import { fetchProjectProgress } from '../api/tasks';
 interface Props {
   projects: Project[];
   tasks: Task[];
+  refreshToken?: number;
 }
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -23,27 +24,44 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 };
 
 function formatBudget(n: number) {
-  return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n);
+  return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(n);
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ project, refreshToken }: { project: Project; refreshToken?: number }) {
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
 
   useEffect(() => {
     fetchProjectProgress(project.id).then(setProgress).catch(() => null);
-  }, [project.id]);
+  }, [project.id, refreshToken]);
 
   const pct = progress?.avgProgress ?? 0;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
-      <div>
-        <h3 className="text-base font-semibold text-gray-900">{project.name}</h3>
-        {project.description && (
-          <p className="text-xs text-gray-400 mt-0.5">{project.description}</p>
-        )}
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">{project.name}</h3>
+          {project.description && (
+            <p className="text-xs text-gray-400 mt-0.5">{project.description}</p>
+          )}
+        </div>
+        {/* Badges */}
+        <div className="flex flex-col gap-1 items-end shrink-0">
+          {progress?.overBudget && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium whitespace-nowrap">
+              Over budget
+            </span>
+          )}
+          {progress && progress.lateTasks > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium whitespace-nowrap">
+              Delayed ({progress.lateTasks})
+            </span>
+          )}
+        </div>
       </div>
 
+      {/* Progress bar */}
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>Progress</span>
@@ -51,35 +69,38 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-500 rounded-full transition-all"
+            className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
       </div>
 
-      {progress && (
+      {/* Stats */}
+      {progress ? (
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xs text-gray-400 mb-1">Tasks</p>
+            <p className="text-xs text-gray-400 mb-1">Tasks done</p>
             <p className="font-semibold text-gray-900">
               {progress.completedTasks} / {progress.totalTasks}
             </p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xs text-gray-400 mb-1">Budget total</p>
-            <p className="font-semibold text-gray-900">{formatBudget(progress.budgetTotal)}</p>
+          <div className={`rounded-lg p-3 ${progress.overBudget ? 'bg-red-50' : 'bg-gray-50'}`}>
+            <p className={`text-xs mb-1 ${progress.overBudget ? 'text-red-500' : 'text-gray-400'}`}>Budget done / total</p>
+            <p className={`font-semibold text-sm ${progress.overBudget ? 'text-red-700' : 'text-gray-900'}`}>
+              {formatBudget(progress.budgetDone)} / {formatBudget(progress.budgetTotal)}
+            </p>
           </div>
-          <div className="bg-green-50 rounded-lg p-3 col-span-2">
-            <p className="text-xs text-green-600 mb-1">Budget completed</p>
-            <p className="font-semibold text-green-700">{formatBudget(progress.budgetDone)}</p>
-          </div>
+        </div>
+      ) : (
+        <div className="h-16 flex items-center justify-center">
+          <span className="text-xs text-gray-300 animate-pulse">Loading...</span>
         </div>
       )}
     </div>
   );
 }
 
-export default function ProgressTab({ projects, tasks }: Props) {
+export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -129,7 +150,7 @@ export default function ProgressTab({ projects, tasks }: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredProjects.map((p) => (
-            <ProjectCard key={p.id} project={p} />
+            <ProjectCard key={p.id} project={p} refreshToken={refreshToken} />
           ))}
         </div>
       )}
@@ -174,3 +195,4 @@ export default function ProgressTab({ projects, tasks }: Props) {
     </div>
   );
 }
+
