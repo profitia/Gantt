@@ -1,0 +1,32 @@
+// Prisma schema for Gantt Dashboard
+// Local dev: SQLite (DATABASE_URL="file:./dev.db")
+// Production (Render): switch provider to "postgresql" and update DATABASE_URL
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  // For PostgreSQL on Render, change to:
+  // provider = "postgresql"
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+  blocked
+}
+
+model Task {
+  id        String     @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  budget    Float
+  status    TaskStatus @default(todo)
+  progress  Int        @default(0)
+  createdAt DateTime   @default(now())
+}
