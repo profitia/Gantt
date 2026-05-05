@@ -40,6 +40,10 @@ function formatDayLabel(date: Date): string {
   return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 // Minimum px per day before horizontal scroll kicks in
 const MIN_DAY_WIDTH = 36;
 
@@ -47,7 +51,9 @@ export default function TimelineView({ tasks, projects }: Props) {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [horizon, setHorizon] = useState<Horizon>('max');
-  const [notesTask, setNotesTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [hoveredTask, setHoveredTask] = useState<Task | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   function renderNotes(text: string | null | undefined) {
     if (!text) return null;
@@ -283,9 +289,11 @@ export default function TimelineView({ tasks, projects }: Props) {
 
                       {/* Task bar */}
                       <div
-                        title={t.notes ? `${t.name} — click to view notes` : `${t.name} | ${color.label} | ${t.progress}%`}
-                        onClick={() => t.notes && setNotesTask(t)}
-                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity overflow-hidden ${t.notes ? 'cursor-pointer' : 'cursor-default'}`}
+                        onClick={() => { setSelectedTask(t); setHoveredTask(null); }}
+                        onMouseEnter={(e) => { setHoveredTask(t); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                        onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                        onMouseLeave={() => setHoveredTask(null)}
+                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity overflow-hidden cursor-pointer`}
                         style={{ left: `calc(${leftPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
                       >
                         {/* Progress fill overlay */}
@@ -329,40 +337,103 @@ export default function TimelineView({ tasks, projects }: Props) {
         )}
       </div>
 
-      {/* Notes modal */}
-      {notesTask && (
+      {/* Floating tooltip */}
+      {hoveredTask && (
+        <div
+          className="fixed z-50 pointer-events-none bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 text-xs max-w-xs"
+          style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 70 }}
+        >
+          <div className="font-semibold text-gray-900 mb-0.5 truncate max-w-[220px]">{hoveredTask.name}</div>
+          <div className="text-gray-500">{formatDate(hoveredTask.startDate)} → {formatDate(hoveredTask.endDate)}</div>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${STATUS_COLORS[hoveredTask.status].bar}`}
+                style={{ width: `${hoveredTask.progress}%` }}
+              />
+            </div>
+            <span className="text-gray-600 font-medium">{hoveredTask.progress}%</span>
+          </div>
+          {hoveredTask.notes && (
+            <div className="text-gray-400 mt-1.5 border-t border-gray-100 pt-1.5 truncate max-w-[220px]">
+              📝 {hoveredTask.notes.slice(0, 50)}{hoveredTask.notes.length > 50 ? '…' : ''}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {selectedTask && (
         <div
           className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-          onClick={() => setNotesTask(null)}
+          onClick={() => setSelectedTask(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-3"
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">{notesTask.name}</h3>
+                <h3 className="text-base font-semibold text-gray-900">{selectedTask.name}</h3>
                 <span
                   className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                    notesTask.status === 'todo' ? 'bg-gray-100 text-gray-700' :
-                    notesTask.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                    notesTask.status === 'done' ? 'bg-green-100 text-green-700' :
+                    selectedTask.status === 'todo' ? 'bg-gray-100 text-gray-700' :
+                    selectedTask.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                    selectedTask.status === 'done' ? 'bg-green-100 text-green-700' :
                     'bg-red-100 text-red-700'
                   }`}
                 >
-                  {notesTask.status === 'todo' ? 'To Do' : notesTask.status === 'in_progress' ? 'In Progress' : notesTask.status === 'done' ? 'Done' : 'Blocked'}
+                  {STATUS_COLORS[selectedTask.status].label}
                 </span>
               </div>
               <button
-                onClick={() => setNotesTask(null)}
+                onClick={() => setSelectedTask(null)}
                 className="text-gray-400 hover:text-gray-600 text-xl leading-none"
               >
                 ×
               </button>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 leading-relaxed max-h-64 overflow-y-auto">
-              {renderNotes(notesTask.notes)}
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400 mb-1">Start date</p>
+                <p className="font-medium text-gray-800">{formatDate(selectedTask.startDate)}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400 mb-1">End date</p>
+                <p className="font-medium text-gray-800">{formatDate(selectedTask.endDate)}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400 mb-1">Budget</p>
+                <p className="font-medium text-gray-800">
+                  {new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(selectedTask.budget)}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400 mb-1">Progress</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${STATUS_COLORS[selectedTask.status].bar}`}
+                      style={{ width: `${selectedTask.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-700">{selectedTask.progress}%</span>
+                </div>
+              </div>
             </div>
+
+            {/* Notes */}
+            {selectedTask.notes && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5">Notes</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">
+                  {renderNotes(selectedTask.notes)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
