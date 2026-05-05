@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <title>Gantt Dashboard</title>
+    <!-- Wake up Render backend before React boots -->
+    <link rel="preconnect" href="https://gantt-gj69.onrender.com" />
+    <script>
+      fetch('https://gantt-gj69.onrender.com/health').catch(function(){});
+    </script>
   </head>
   <body>
     <div id="root"></div>

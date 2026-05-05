@@ -162,6 +162,45 @@ export default function App() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 className="text-xl font-bold text-gray-900">Gantt Dashboard</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Project task planning</p>
+          </div>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center px-4">
+          {/* Spinner */}
+          <svg className="w-10 h-10 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          <div>
+            <p className="text-base font-semibold text-gray-700">Ładowanie danych&hellip;</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Serwer budzi się po przerwie &mdash; to może chwilę potrwać.
+            </p>
+          </div>
+          {/* Skeleton cards */}
+          <div className="mt-4 w-full max-w-2xl space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 items-center animate-pulse">
+                <div className="w-8 h-8 rounded-full bg-gray-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  <div className="h-2 bg-gray-100 rounded w-2/3" />
+                </div>
+                <div className="h-2 bg-gray-200 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
@@ -173,9 +212,6 @@ export default function App() {
             <h1 className="text-xl font-bold text-gray-900">Gantt Dashboard</h1>
             <p className="text-xs text-gray-400 mt-0.5">Project task planning</p>
           </div>
-          {loading && (
-            <span className="text-xs text-blue-500 animate-pulse">Loading...</span>
-          )}
         </div>
       </header>
 
