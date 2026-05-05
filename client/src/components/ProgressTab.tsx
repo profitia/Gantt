@@ -6,6 +6,31 @@ import TimelineView from './TimelineView';
 
 type ViewMode = 'cards' | 'timeline';
 
+function renderNotes(text: string | null | undefined) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i} className="whitespace-pre-wrap">{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 interface Props {
   projects: Project[];
   tasks: Task[];
@@ -107,6 +132,7 @@ export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   const statuses: TaskStatus[] = ['todo', 'in_progress', 'done', 'blocked'];
 
@@ -205,25 +231,48 @@ export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
             {filteredTasks.map((t) => {
               const proj = projects.find((p) => p.id === t.projectId);
               return (
-                <div key={t.id} className="px-5 py-3 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
-                    {proj && <p className="text-xs text-gray-400">{proj.name}</p>}
-                  </div>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[t.status as TaskStatus]}`}
-                  >
-                    {STATUS_LABELS[t.status as TaskStatus]}
-                  </span>
-                  <div className="w-24 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full"
-                        style={{ width: `${t.progress}%` }}
-                      />
+                <div key={t.id} className="px-5 py-3 flex flex-col">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        {t.notes && (
+                          <button
+                            onClick={() => setExpandedNoteId(expandedNoteId === t.id ? null : t.id)}
+                            className="text-gray-400 hover:text-gray-600 text-xs leading-none shrink-0"
+                            title={expandedNoteId === t.id ? 'Hide notes' : 'Show notes'}
+                          >
+                            {expandedNoteId === t.id ? '▼' : '▶'}
+                          </button>
+                        )}
+                        <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
+                      </div>
+                      {proj && <p className="text-xs text-gray-400 pl-4">{proj.name}</p>}
+                      {t.notes && expandedNoteId !== t.id && (
+                        <p className="text-xs text-gray-400 mt-0.5 truncate pl-4">
+                          {t.notes.slice(0, 60)}{t.notes.length > 60 ? '…' : ''}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-xs text-gray-400 w-8 text-right">{t.progress}%</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[t.status as TaskStatus]}`}
+                    >
+                      {STATUS_LABELS[t.status as TaskStatus]}
+                    </span>
+                    <div className="w-24 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
+                          style={{ width: `${t.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 w-8 text-right">{t.progress}%</span>
+                    </div>
                   </div>
+                  {expandedNoteId === t.id && t.notes && (
+                    <div className="mt-2 ml-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-700 leading-relaxed">
+                      {renderNotes(t.notes)}
+                    </div>
+                  )}
                 </div>
               );
             })}

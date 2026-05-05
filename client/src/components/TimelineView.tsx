@@ -47,6 +47,32 @@ export default function TimelineView({ tasks, projects }: Props) {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [horizon, setHorizon] = useState<Horizon>('max');
+  const [notesTask, setNotesTask] = useState<Task | null>(null);
+
+  function renderNotes(text: string | null | undefined) {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return (
+      <>
+        {parts.map((part, i) =>
+          urlRegex.test(part) ? (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline break-all"
+            >
+              {part}
+            </a>
+          ) : (
+            <span key={i} className="whitespace-pre-wrap">{part}</span>
+          )
+        )}
+      </>
+    );
+  }
 
   const statuses: TaskStatus[] = ['todo', 'in_progress', 'done', 'blocked'];
 
@@ -257,8 +283,9 @@ export default function TimelineView({ tasks, projects }: Props) {
 
                       {/* Task bar */}
                       <div
-                        title={`${t.name} | ${color.label} | ${t.progress}%`}
-                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity cursor-default overflow-hidden`}
+                        title={t.notes ? `${t.name} — click to view notes` : `${t.name} | ${color.label} | ${t.progress}%`}
+                        onClick={() => t.notes && setNotesTask(t)}
+                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity overflow-hidden ${t.notes ? 'cursor-pointer' : 'cursor-default'}`}
                         style={{ left: `calc(${leftPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
                       >
                         {/* Progress fill overlay */}
@@ -301,6 +328,44 @@ export default function TimelineView({ tasks, projects }: Props) {
           </div>
         )}
       </div>
+
+      {/* Notes modal */}
+      {notesTask && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => setNotesTask(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">{notesTask.name}</h3>
+                <span
+                  className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                    notesTask.status === 'todo' ? 'bg-gray-100 text-gray-700' :
+                    notesTask.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                    notesTask.status === 'done' ? 'bg-green-100 text-green-700' :
+                    'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {notesTask.status === 'todo' ? 'To Do' : notesTask.status === 'in_progress' ? 'In Progress' : notesTask.status === 'done' ? 'Done' : 'Blocked'}
+                </span>
+              </div>
+              <button
+                onClick={() => setNotesTask(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 leading-relaxed max-h-64 overflow-y-auto">
+              {renderNotes(notesTask.notes)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

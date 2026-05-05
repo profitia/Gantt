@@ -23,6 +23,7 @@ export default function TaskForm({ onSubmit, projectId, disabled }: Props) {
   const [budget, setBudget] = useState('');
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [progress, setProgress] = useState('0');
+  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,12 +38,14 @@ export default function TaskForm({ onSubmit, projectId, disabled }: Props) {
         budget: parseFloat(budget) || 0,
         status,
         progress: parseInt(progress, 10) || 0,
+        notes: notes.trim() || undefined,
         projectId,
       });
       setName('');
       setBudget('');
       setProgress('0');
       setStatus('todo');
+      setNotes('');
     } finally {
       setLoading(false);
     }
@@ -107,7 +110,7 @@ export default function TaskForm({ onSubmit, projectId, disabled }: Props) {
             ))}
           </select>
         </div>
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Progress: {progress}%
           </label>
@@ -119,6 +122,16 @@ export default function TaskForm({ onSubmit, projectId, disabled }: Props) {
             max="100"
             step="5"
             className="w-full accent-blue-500"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Add notes or paste links..."
+            rows={3}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
           />
         </div>
       </div>

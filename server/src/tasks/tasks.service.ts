@@ -11,6 +11,7 @@ export interface CreateTaskInput {
   status: TaskStatus;
   progress: number;
   projectId: string;
+  notes?: string;
 }
 
 export interface UpdateTaskInput {
@@ -20,6 +21,7 @@ export interface UpdateTaskInput {
   budget?: number;
   status?: TaskStatus;
   progress?: number;
+  notes?: string;
 }
 
 export async function getAllTasks(projectId?: string) {
@@ -39,6 +41,7 @@ export async function createTask(input: CreateTaskInput) {
       budget: input.budget,
       status: input.status,
       progress: input.progress ?? 0,
+      notes: input.notes ?? null,
       projectId: input.projectId,
     },
   });
@@ -54,6 +57,7 @@ export async function updateTask(id: string, input: UpdateTaskInput) {
       ...(input.budget !== undefined && { budget: input.budget }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.progress !== undefined && { progress: input.progress }),
+      ...(input.notes !== undefined && { notes: input.notes }),
     },
   });
 }

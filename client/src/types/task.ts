@@ -8,6 +8,7 @@ export interface Task {
   budget: number;
   status: TaskStatus;
   progress: number;
+  notes?: string | null;
   createdAt: string;
   projectId: string;
 }
@@ -20,6 +21,7 @@ export interface CreateTaskPayload {
   status: TaskStatus;
   progress: number;
   projectId: string;
+  notes?: string;
 }
 
 export interface UpdateTaskPayload {
@@ -29,6 +31,7 @@ export interface UpdateTaskPayload {
   budget?: number;
   status?: TaskStatus;
   progress?: number;
+  notes?: string;
 }
 
 export interface Project {
