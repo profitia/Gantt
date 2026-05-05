@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Task, Project, TaskStatus } from '../types/task';
 
 interface Props {
@@ -8,11 +8,11 @@ interface Props {
 
 type Horizon = 7 | 14 | 30 | 'max';
 
-const STATUS_COLORS: Record<TaskStatus, { bar: string; label: string }> = {
-  todo: { bar: 'bg-gray-400', label: 'To Do' },
-  in_progress: { bar: 'bg-blue-500', label: 'In Progress' },
-  done: { bar: 'bg-green-500', label: 'Done' },
-  blocked: { bar: 'bg-red-500', label: 'Blocked' },
+const STATUS_COLORS: Record<TaskStatus, { bar: string; label: string; hex: string }> = {
+  todo: { bar: 'bg-gray-400', label: 'To Do', hex: '#9ca3af' },
+  in_progress: { bar: 'bg-blue-500', label: 'In Progress', hex: '#3b82f6' },
+  done: { bar: 'bg-green-500', label: 'Done', hex: '#22c55e' },
+  blocked: { bar: 'bg-red-500', label: 'Blocked', hex: '#ef4444' },
 };
 
 const STATUS_ORDER: Record<TaskStatus, number> = {
@@ -54,6 +54,14 @@ export default function TimelineView({ tasks, projects }: Props) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [hoveredTask, setHoveredTask] = useState<Task | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelectedTask(null);
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
 
   function renderNotes(text: string | null | undefined) {
     if (!text) return null;
@@ -288,28 +296,40 @@ export default function TimelineView({ tasks, projects }: Props) {
                       )}
 
                       {/* Task bar */}
-                      <div
-                        onClick={() => { setSelectedTask(t); setHoveredTask(null); }}
-                        onMouseEnter={(e) => { setHoveredTask(t); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                        onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
-                        onMouseLeave={() => setHoveredTask(null)}
-                        className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-opacity overflow-hidden cursor-pointer`}
-                        style={{ left: `calc(${leftPct}% + 2px)`, width: `calc(${widthPct}% - 4px)` }}
-                      >
-                        {/* Progress fill overlay */}
-                        {t.progress > 0 && (
+                      {(() => {
+                        const isSelected = selectedTask?.id === t.id;
+                        return (
                           <div
-                            className="absolute inset-0 bg-black rounded-md"
-                            style={{ width: `${t.progress}%`, opacity: 0.15 }}
-                          />
-                        )}
-                        <div className="relative h-full flex items-center px-2">
-                          <span className="text-xs text-white font-semibold truncate select-none drop-shadow-sm">
-                            {t.name}
-                            {t.progress > 0 && ` · ${t.progress}%`}
-                          </span>
-                        </div>
-                      </div>
+                            onClick={() => { setSelectedTask(t); setHoveredTask(null); }}
+                            onMouseEnter={(e) => { setHoveredTask(t); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                            onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                            onMouseLeave={() => setHoveredTask(null)}
+                            className={`absolute top-3 h-8 rounded-md ${color.bar} opacity-90 hover:opacity-100 transition-all overflow-hidden cursor-pointer`}
+                            style={{
+                              left: `calc(${leftPct}% + 2px)`,
+                              width: `calc(${widthPct}% - 4px)`,
+                              borderLeft: `3px solid ${color.hex}`,
+                              boxShadow: isSelected ? `0 0 0 2px #3b82f6, 0 2px 8px rgba(59,130,246,0.3)` : undefined,
+                            }}
+                          >
+                            {/* Bottom progress bar */}
+                            <div
+                              className="absolute bottom-0 left-0 right-0 h-1 rounded-b-md"
+                              style={{ background: 'rgba(255,255,255,0.25)' }}
+                            >
+                              <div
+                                className="h-full rounded-b-md"
+                                style={{ width: `${t.progress}%`, background: 'rgba(255,255,255,0.75)' }}
+                              />
+                            </div>
+                            <div className="relative h-full flex items-center px-2 pb-1">
+                              <span className="text-xs text-white font-semibold truncate select-none drop-shadow-sm">
+                                {t.name}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -340,8 +360,12 @@ export default function TimelineView({ tasks, projects }: Props) {
       {/* Floating tooltip */}
       {hoveredTask && (
         <div
-          className="fixed z-50 pointer-events-none bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 text-xs max-w-xs"
-          style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 70 }}
+          className="fixed z-50 pointer-events-none bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 text-xs"
+          style={{
+            left: Math.min(tooltipPos.x + 12, window.innerWidth - 272),
+            top: Math.min(tooltipPos.y + 12, window.innerHeight - 130),
+            maxWidth: '260px',
+          }}
         >
           <div className="font-semibold text-gray-900 mb-0.5 truncate max-w-[220px]">{hoveredTask.name}</div>
           <div className="text-gray-500">{formatDate(hoveredTask.startDate)} → {formatDate(hoveredTask.endDate)}</div>
