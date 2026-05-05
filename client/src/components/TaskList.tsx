@@ -42,6 +42,9 @@ interface EditState {
   notes: string;
 }
 
+type SortField = 'startDate' | 'endDate' | 'budget' | 'status' | 'progress';
+type SortDirection = 'asc' | 'desc' | null;
+
 function renderNotes(text: string | null | undefined) {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -72,6 +75,8 @@ export default function TaskList({ tasks, onUpdate, onDelete }: Props) {
   const [editState, setEditState] = useState<EditState | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
   const startEdit = (task: Task) => {
     setEditingId(task.id);
@@ -122,6 +127,57 @@ export default function TaskList({ tasks, onUpdate, onDelete }: Props) {
     }
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return <span className="ml-1 text-gray-300">↕</span>;
+    if (sortDirection === 'asc') return <span className="ml-1 text-blue-500">↑</span>;
+    return <span className="ml-1 text-blue-500">↓</span>;
+  };
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (!sortField || !sortDirection) return 0;
+    let valA = 0;
+    let valB = 0;
+    switch (sortField) {
+      case 'startDate':
+        valA = new Date(a.startDate).getTime();
+        valB = new Date(b.startDate).getTime();
+        break;
+      case 'endDate':
+        valA = new Date(a.endDate).getTime();
+        valB = new Date(b.endDate).getTime();
+        break;
+      case 'budget':
+        valA = a.budget;
+        valB = b.budget;
+        break;
+      case 'progress':
+        valA = a.progress;
+        valB = b.progress;
+        break;
+      case 'status': {
+        const order: Record<TaskStatus, number> = { blocked: 0, todo: 1, in_progress: 2, done: 3 };
+        valA = order[a.status];
+        valB = order[b.status];
+        break;
+      }
+    }
+    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   if (tasks.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center text-gray-400">
@@ -140,15 +196,35 @@ export default function TaskList({ tasks, onUpdate, onDelete }: Props) {
           <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
             <tr>
               <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Dates</th>
-              <th className="px-4 py-3 text-right">Budget</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-center">Progress</th>
+              <th
+                className="px-4 py-3 text-left cursor-pointer select-none hover:bg-gray-100 hover:text-gray-900"
+                onClick={() => handleSort('startDate')}
+              >
+                <span className="inline-flex items-center">Dates {renderSortIcon('startDate')}</span>
+              </th>
+              <th
+                className="px-4 py-3 text-right cursor-pointer select-none hover:bg-gray-100 hover:text-gray-900"
+                onClick={() => handleSort('budget')}
+              >
+                <span className="inline-flex items-center justify-end w-full">Budget {renderSortIcon('budget')}</span>
+              </th>
+              <th
+                className="px-4 py-3 text-center cursor-pointer select-none hover:bg-gray-100 hover:text-gray-900"
+                onClick={() => handleSort('status')}
+              >
+                <span className="inline-flex items-center justify-center">Status {renderSortIcon('status')}</span>
+              </th>
+              <th
+                className="px-4 py-3 text-center cursor-pointer select-none hover:bg-gray-100 hover:text-gray-900"
+                onClick={() => handleSort('progress')}
+              >
+                <span className="inline-flex items-center justify-center">Progress {renderSortIcon('progress')}</span>
+              </th>
               <th className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {tasks.flatMap((task) => {
+            {sortedTasks.flatMap((task) => {
               if (editingId === task.id && editState) {
                 return [
                   <tr key={task.id} className="bg-blue-50">

@@ -5,6 +5,8 @@ import { fetchProjectProgress } from '../api/tasks';
 import TimelineView from './TimelineView';
 
 type ViewMode = 'cards' | 'timeline';
+type SortField = 'startDate' | 'endDate' | 'budget' | 'status' | 'progress';
+type SortDirection = 'asc' | 'desc' | null;
 
 function renderNotes(text: string | null | undefined) {
   if (!text) return null;
@@ -133,6 +135,26 @@ export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
+  const handleSort = (field: SortField) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return <span className="text-gray-300">↕</span>;
+    if (sortDirection === 'asc') return <span className="text-blue-500">↑</span>;
+    return <span className="text-blue-500">↓</span>;
+  };
 
   const statuses: TaskStatus[] = ['todo', 'in_progress', 'done', 'blocked'];
 
@@ -140,6 +162,39 @@ export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
     if (filterProject !== 'all' && t.projectId !== filterProject) return false;
     if (filterStatus !== 'all' && t.status !== filterStatus) return false;
     return true;
+  });
+
+  const sortedFilteredTasks = [...filteredTasks].sort((a, b) => {
+    if (!sortField || !sortDirection) return 0;
+    let valA = 0;
+    let valB = 0;
+    switch (sortField) {
+      case 'startDate':
+        valA = new Date(a.startDate).getTime();
+        valB = new Date(b.startDate).getTime();
+        break;
+      case 'endDate':
+        valA = new Date(a.endDate).getTime();
+        valB = new Date(b.endDate).getTime();
+        break;
+      case 'budget':
+        valA = a.budget;
+        valB = b.budget;
+        break;
+      case 'progress':
+        valA = a.progress;
+        valB = b.progress;
+        break;
+      case 'status': {
+        const order: Record<TaskStatus, number> = { blocked: 0, todo: 1, in_progress: 2, done: 3 };
+        valA = order[a.status];
+        valB = order[b.status];
+        break;
+      }
+    }
+    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
 
   const filteredProjects =
@@ -222,13 +277,35 @@ export default function ProgressTab({ projects, tasks, refreshToken }: Props) {
       {/* Filtered task list */}
       {filteredTasks.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
             <h3 className="text-sm font-semibold text-gray-700">
               Tasks ({filteredTasks.length})
             </h3>
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-gray-400 mr-0.5">Sort:</span>
+              {([
+                ['startDate', 'Start'],
+                ['endDate', 'End'],
+                ['budget', 'Budget'],
+                ['status', 'Status'],
+                ['progress', 'Progress'],
+              ] as [SortField, string][]).map(([field, label]) => (
+                <button
+                  key={field}
+                  onClick={() => handleSort(field)}
+                  className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded transition-colors ${
+                    sortField === field
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {label} {renderSortIcon(field)}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="divide-y divide-gray-50">
-            {filteredTasks.map((t) => {
+            {sortedFilteredTasks.map((t) => {
               const proj = projects.find((p) => p.id === t.projectId);
               return (
                 <div key={t.id} className="px-5 py-3 flex flex-col">
